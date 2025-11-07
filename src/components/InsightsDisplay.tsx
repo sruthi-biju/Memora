@@ -3,8 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, StickyNote, Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, Calendar, StickyNote, Heart, Trash2, Edit2, Check, X } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "@/hooks/use-toast";
 
 interface Task {
   id: string;
@@ -41,6 +45,9 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [health, setHealth] = useState<HealthMention[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingType, setEditingType] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
 
   useEffect(() => {
     fetchData();
@@ -66,6 +73,73 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
   const toggleTask = async (taskId: string, completed: boolean) => {
     await supabase.from("tasks").update({ completed: !completed }).eq("id", taskId);
     fetchData();
+  };
+
+  const startEdit = (id: string, type: string, currentValue: string) => {
+    setEditingId(id);
+    setEditingType(type);
+    setEditValue(currentValue);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingType(null);
+    setEditValue("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editingType) return;
+
+    try {
+      let error;
+      if (editingType === "tasks") {
+        const result = await supabase.from("tasks").update({ title: editValue }).eq("id", editingId);
+        error = result.error;
+      } else if (editingType === "calendar_events") {
+        const result = await supabase.from("calendar_events").update({ title: editValue }).eq("id", editingId);
+        error = result.error;
+      } else if (editingType === "notes") {
+        const result = await supabase.from("notes").update({ content: editValue }).eq("id", editingId);
+        error = result.error;
+      } else if (editingType === "health_mentions") {
+        const result = await supabase.from("health_mentions").update({ content: editValue }).eq("id", editingId);
+        error = result.error;
+      }
+
+      if (error) throw error;
+
+      toast({ title: "Updated successfully" });
+      cancelEdit();
+      fetchData();
+    } catch (error) {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
+  };
+
+  const deleteItem = async (id: string, type: "tasks" | "calendar_events" | "notes" | "health_mentions") => {
+    try {
+      let error;
+      if (type === "tasks") {
+        const result = await supabase.from("tasks").delete().eq("id", id);
+        error = result.error;
+      } else if (type === "calendar_events") {
+        const result = await supabase.from("calendar_events").delete().eq("id", id);
+        error = result.error;
+      } else if (type === "notes") {
+        const result = await supabase.from("notes").delete().eq("id", id);
+        error = result.error;
+      } else if (type === "health_mentions") {
+        const result = await supabase.from("health_mentions").delete().eq("id", id);
+        error = result.error;
+      }
+
+      if (error) throw error;
+
+      toast({ title: "Deleted successfully" });
+      fetchData();
+    } catch (error) {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -106,13 +180,49 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
                   className="mt-1"
                 />
                 <div className="flex-1 space-y-1">
-                  <p className={`text-sm ${task.completed ? "line-through text-muted-foreground" : ""}`}>
-                    {task.title}
-                  </p>
+                  {editingId === task.id && editingType === "tasks" ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="h-8"
+                      />
+                      <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className={`text-sm ${task.completed ? "line-through text-muted-foreground" : ""}`}>
+                      {task.title}
+                    </p>
+                  )}
                   <Badge className={getPriorityColor(task.priority)} variant="secondary">
                     {task.priority}
                   </Badge>
                 </div>
+                {editingId !== task.id && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => startEdit(task.id, "tasks", task.title)}
+                      className="h-8 w-8"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteItem(task.id, "tasks")}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -134,13 +244,51 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
             events.map((event) => (
               <div
                 key={event.id}
-                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)]"
+                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)] flex items-start justify-between gap-3"
               >
-                <p className="text-sm font-medium">{event.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {event.event_date && format(new Date(event.event_date), "MMM dd, yyyy")}
-                  {event.event_time && ` at ${event.event_time}`}
-                </p>
+                <div className="flex-1">
+                  {editingId === event.id && editingType === "calendar_events" ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="h-8"
+                      />
+                      <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium">{event.title}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {event.event_date && format(new Date(event.event_date), "MMM dd, yyyy")}
+                    {event.event_time && ` at ${event.event_time}`}
+                  </p>
+                </div>
+                {editingId !== event.id && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => startEdit(event.id, "calendar_events", event.title)}
+                      className="h-8 w-8"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteItem(event.id, "calendar_events")}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -162,12 +310,52 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
             notes.map((note) => (
               <div
                 key={note.id}
-                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)]"
+                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)] flex items-start justify-between gap-3"
               >
-                <p className="text-sm">{note.content}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(note.created_at), "MMM dd, yyyy")}
-                </p>
+                <div className="flex-1">
+                  {editingId === note.id && editingType === "notes" ? (
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="min-h-[60px]"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{note.content}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(note.created_at), "MMM dd, yyyy")}
+                  </p>
+                </div>
+                {editingId !== note.id && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => startEdit(note.id, "notes", note.content)}
+                      className="h-8 w-8"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteItem(note.id, "notes")}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -189,12 +377,52 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
             health.map((item) => (
               <div
                 key={item.id}
-                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)]"
+                className="p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-[var(--transition-smooth)] flex items-start justify-between gap-3"
               >
-                <p className="text-sm">{item.content}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(item.created_at), "MMM dd, yyyy")}
-                </p>
+                <div className="flex-1">
+                  {editingId === item.id && editingType === "health_mentions" ? (
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="min-h-[60px]"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <Button size="icon" variant="ghost" onClick={saveEdit} className="h-8 w-8">
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{item.content}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(item.created_at), "MMM dd, yyyy")}
+                  </p>
+                </div>
+                {editingId !== item.id && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => startEdit(item.id, "health_mentions", item.content)}
+                      className="h-8 w-8"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteItem(item.id, "health_mentions")}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
