@@ -1,54 +1,19 @@
-# Welcome to your Lovable project
+# Memora - Your AI Powered Journal Companion
 
 ## Project info
+A mindful digital companion that turns your day into clarity.
+This website allows users to log their daily thoughts and experiences like a diary. Using AI, it analyzes journal entries to:
 
-**URL**: https://lovable.dev/projects/8c849f7c-a1e6-496c-9e10-bec84589065d
+- Create and update personalized to-do lists
 
-## How can I edit this code?
+- Adjust priority tasks and calendar events
 
-There are several ways of editing your application.
+- Track health goals and habits
 
-**Use Lovable**
+- Generate reminders and notes
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8c849f7c-a1e6-496c-9e10-bec84589065d) and start prompting.
+Built with 💙 for people who want their journaling to lead to action, balance, and insight.
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
 
@@ -60,14 +25,7 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Visit Memora at: 
 
-Simply open [Lovable](https://lovable.dev/projects/8c849f7c-a1e6-496c-9e10-bec84589065d) and click on Share -> Publish.
+Website link: https://today-craftsman.lovable.app/
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
