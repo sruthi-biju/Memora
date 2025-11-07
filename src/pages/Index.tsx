@@ -53,7 +53,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-primary" />
             <h1 className="text-2xl font-bold bg-[var(--gradient-hero)] bg-clip-text text-transparent">
-              Life Journal
+              Memora
             </h1>
           </div>
           <Button variant="outline" onClick={handleSignOut} size="sm">
