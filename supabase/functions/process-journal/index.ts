@@ -51,26 +51,13 @@ IMPORTANT: Today's current date and time is ${currentDateTime} (${currentDate} a
 Use this as the reference point for all relative dates and times mentioned in the journal entry.
 
 Extract the following from the journal entry:
-1. Tasks/To-dos (things to do, goals, intentions)
-2. Calendar Events (specific dates, times, meetings, appointments)
+1. Tasks/To-dos (things to do, goals, intentions) - set priority based on urgency/importance
+2. Calendar Events (specific dates, times, meetings, appointments) - convert relative dates (today, tomorrow) to actual dates
 3. Important Notes (insights, reflections, important information)
 4. Health Mentions (exercise, diet, sleep, mood, symptoms, wellness activities)
 
-Return the data in JSON format with these exact keys:
-{
-  "tasks": [{"title": "task description", "priority": "low|medium|high"}],
-  "events": [{"title": "event name", "date": "YYYY-MM-DD", "time": "HH:MM"}],
-  "notes": [{"content": "note content"}],
-  "health": [{"content": "health mention"}]
-}
-
-Guidelines:
-- For tasks: Extract action items, todos, goals. Set priority based on urgency/importance.
-- For events: ALWAYS include date and time when mentioned. Convert relative dates (today, tomorrow, next week) to actual dates based on current date: ${currentDate}. If time is mentioned, include it. If not mentioned but it's an event, use the current time: ${currentTime} as default.
-- For notes: Extract key insights, reflections, or important information worth remembering.
-- For health: Extract mentions of physical/mental health, exercise, diet, sleep, mood.
-- If a category has no items, return an empty array.
-- Be smart about interpreting context (e.g., "tomorrow" = ${new Date(now.getTime() + 86400000).toISOString().split('T')[0]}).`;
+For events: If time is mentioned, include it. If not mentioned but it's an event, use the current time: ${currentTime} as default.
+Be smart about interpreting context (e.g., "tomorrow" = ${new Date(now.getTime() + 86400000).toISOString().split('T')[0]}).`;
 
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -86,7 +73,70 @@ Guidelines:
             { role: "system", content: systemPrompt },
             { role: "user", content: journalContent },
           ],
-          response_format: { type: "json_object" },
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "extract_journal_data",
+                description: "Extract structured data from journal entry",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    tasks: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          title: { type: "string" },
+                          priority: { type: "string", enum: ["low", "medium", "high"] }
+                        },
+                        required: ["title", "priority"],
+                        additionalProperties: false
+                      }
+                    },
+                    events: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          title: { type: "string" },
+                          date: { type: "string" },
+                          time: { type: "string" }
+                        },
+                        required: ["title"],
+                        additionalProperties: false
+                      }
+                    },
+                    notes: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          content: { type: "string" }
+                        },
+                        required: ["content"],
+                        additionalProperties: false
+                      }
+                    },
+                    health: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          content: { type: "string" }
+                        },
+                        required: ["content"],
+                        additionalProperties: false
+                      }
+                    }
+                  },
+                  required: ["tasks", "events", "notes", "health"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ],
+          tool_choice: { type: "function", function: { name: "extract_journal_data" } }
         }),
       }
     );
@@ -120,15 +170,15 @@ Guidelines:
     }
 
     const aiData = await aiResponse.json();
+    console.log("AI Response:", JSON.stringify(aiData, null, 2));
     
-    // Clean the response content - remove markdown code blocks if present
-    let content = aiData.choices[0].message.content;
-    console.log("Raw AI response:", content);
+    // Extract structured data from tool call
+    const toolCall = aiData.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== "extract_journal_data") {
+      throw new Error("AI did not return expected tool call");
+    }
     
-    // Remove markdown code block markers if present
-    content = content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
-    
-    const extractedData = JSON.parse(content);
+    const extractedData = JSON.parse(toolCall.function.arguments);
     console.log("Extracted data:", extractedData);
 
     // Initialize Supabase client
