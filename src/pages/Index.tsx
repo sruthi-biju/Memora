@@ -53,9 +53,7 @@ const Index = () => {
               <SidebarTrigger />
               <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
                 <BookOpen className="w-6 h-6 text-primary" />
-                <h1 className="text-2xl font-bold bg-[var(--gradient-hero)] bg-clip-text text-transparent">
-                  Memora
-                </h1>
+                <h1 className="bg-[var(--gradient-hero)] bg-clip-text text-[#45b0a5] my-0 py-0 font-semibold text-xl">memora</h1>
               </div>
               <Button variant="outline" onClick={handleSignOut} size="sm">
                 <LogOut className="w-4 h-4 mr-2" />
