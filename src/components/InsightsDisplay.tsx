@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress";
 interface Insights {
   mood: string;
   personality: string;
-  themes: string[];
   motivation: string;
   suggestions: string[];
 }
@@ -148,35 +147,16 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
       {/* Insights Dashboard */}
       {insights && (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Personality Analysis */}
-          <Card className="shadow-[var(--shadow-card)]">
+          {/* Personality Snapshot */}
+          <Card className="shadow-[var(--shadow-card)] md:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary" />
-                Personality Analysis
+                Personality Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">{insights.personality}</p>
-            </CardContent>
-          </Card>
-
-          {/* Key Themes */}
-          <Card className="shadow-[var(--shadow-card)]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                Key Themes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {insights.themes.map((theme, index) => (
-                  <Badge key={index} variant="secondary">
-                    {theme}
-                  </Badge>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
@@ -185,7 +165,7 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Heart className="w-5 h-5 text-primary" />
-                Motivational Insight
+                Daily Motivation
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -198,9 +178,8 @@ export const InsightsDisplay = ({ refreshTrigger }: InsightsDisplayProps) => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-primary" />
-                Growth Suggestions
+                Quick Wins
               </CardTitle>
-              <CardDescription>Personalized recommendations based on your journaling patterns</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">

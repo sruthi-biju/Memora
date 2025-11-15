@@ -60,12 +60,11 @@ Health Mentions: ${healthSummary}
 
 Please provide:
 1. Overall mood trend (positive, neutral, or negative)
-2. A brief personality analysis based on writing style and content
-3. Key themes or patterns you notice
-4. A motivational insight or quote tailored to this person
-5. Suggestions for personal growth
+2. A short, fun personality snapshot (2-3 sentences max, keep it light and engaging)
+3. A motivational insight or quote tailored to this person
+4. 2-3 concise growth suggestions (one sentence each, direct and actionable)
 
-Format your response as JSON with these keys: mood, personality, themes (array), motivation, suggestions (array)`;
+Format your response as JSON with these keys: mood, personality, motivation, suggestions (array)`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
@@ -108,8 +107,7 @@ Format your response as JSON with these keys: mood, personality, themes (array),
       // Fallback insights
       insights = {
         mood: 'neutral',
-        personality: 'Thoughtful individual with varied interests',
-        themes: ['Personal growth', 'Daily activities'],
+        personality: 'Thoughtful and curious, always exploring new ideas.',
         motivation: 'Keep moving forward, one day at a time.',
         suggestions: ['Continue journaling regularly', 'Set small achievable goals']
       };
