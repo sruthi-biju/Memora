@@ -4,9 +4,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, ArrowLeft, LogOut } from "lucide-react";
+import { format, isWithinInterval, subDays, startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
+import { FilterMenu } from "@/components/FilterMenu";
 
 interface HealthMention {
   id: string;
@@ -16,7 +18,10 @@ interface HealthMention {
 
 export default function HealthWellness() {
   const [healthMentions, setHealthMentions] = useState<HealthMention[]>([]);
+  const [filteredHealthMentions, setFilteredHealthMentions] = useState<HealthMention[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -28,6 +33,31 @@ export default function HealthWellness() {
   useEffect(() => {
     fetchHealthMentions();
   }, []);
+
+  useEffect(() => {
+    let filtered = healthMentions.filter((mention) =>
+      mention.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((mention) => {
+        const mentionDate = new Date(mention.created_at);
+        switch (dateFilter) {
+          case "today":
+            return isWithinInterval(mentionDate, { start: startOfDay(now), end: now });
+          case "week":
+            return isWithinInterval(mentionDate, { start: subDays(now, 7), end: now });
+          case "month":
+            return isWithinInterval(mentionDate, { start: subDays(now, 30), end: now });
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredHealthMentions(filtered);
+  }, [healthMentions, searchQuery, dateFilter]);
 
   const fetchHealthMentions = async () => {
     try {
@@ -69,10 +99,29 @@ export default function HealthWellness() {
                   Back to Home
                 </Button>
               </div>
-              <Button variant="outline" onClick={handleSignOut} size="sm">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onFilterChange={(type, value) => setDateFilter(value)}
+                  filters={[
+                    {
+                      label: "Date Range",
+                      type: "date",
+                      options: [
+                        { label: "All Time", value: "all" },
+                        { label: "Today", value: "today" },
+                        { label: "Last 7 Days", value: "week" },
+                        { label: "Last 30 Days", value: "month" },
+                      ],
+                    },
+                  ]}
+                />
+                <Button variant="outline" onClick={handleSignOut} size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -86,11 +135,13 @@ export default function HealthWellness() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {healthMentions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No health mentions yet</p>
+          {filteredHealthMentions.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              {healthMentions.length === 0 ? "No health mentions yet" : "No mentions match your search"}
+            </p>
           ) : (
             <div className="space-y-3">
-              {healthMentions.map((mention) => (
+              {filteredHealthMentions.map((mention) => (
                 <div key={mention.id} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                   <p className="text-sm whitespace-pre-wrap">{mention.content}</p>
                 </div>

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FileText, ArrowLeft, LogOut, Plus } from "lucide-react";
+import { format, isWithinInterval, subDays, startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
+import { FilterMenu } from "@/components/FilterMenu";
 
 interface Note {
   id: string;
@@ -18,9 +20,12 @@ interface Note {
 
 export default function NotesInsights() {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -32,6 +37,31 @@ export default function NotesInsights() {
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  useEffect(() => {
+    let filtered = notes.filter((note) =>
+      note.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((note) => {
+        const noteDate = new Date(note.created_at);
+        switch (dateFilter) {
+          case "today":
+            return isWithinInterval(noteDate, { start: startOfDay(now), end: now });
+          case "week":
+            return isWithinInterval(noteDate, { start: subDays(now, 7), end: now });
+          case "month":
+            return isWithinInterval(noteDate, { start: subDays(now, 30), end: now });
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredNotes(filtered);
+  }, [notes, searchQuery, dateFilter]);
 
   const fetchNotes = async () => {
     try {
@@ -114,10 +144,29 @@ export default function NotesInsights() {
                   Back to Home
                 </Button>
               </div>
-              <Button variant="outline" onClick={handleSignOut} size="sm">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onFilterChange={(type, value) => setDateFilter(value)}
+                  filters={[
+                    {
+                      label: "Date Range",
+                      type: "date",
+                      options: [
+                        { label: "All Time", value: "all" },
+                        { label: "Today", value: "today" },
+                        { label: "Last 7 Days", value: "week" },
+                        { label: "Last 30 Days", value: "month" },
+                      ],
+                    },
+                  ]}
+                />
+                <Button variant="outline" onClick={handleSignOut} size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -162,11 +211,13 @@ export default function NotesInsights() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {notes.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No notes yet</p>
+          {filteredNotes.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              {notes.length === 0 ? "No notes yet" : "No notes match your search"}
+            </p>
           ) : (
             <div className="space-y-3">
-              {notes.map((note) => (
+              {filteredNotes.map((note) => (
                 <div key={note.id} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                   <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                 </div>

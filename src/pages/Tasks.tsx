@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterMenu } from "@/components/FilterMenu";
 
 interface Task {
   id: string;
@@ -23,9 +24,13 @@ interface Task {
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTask, setNewTask] = useState({ title: "", priority: "medium" });
   const [isAdding, setIsAdding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -37,6 +42,24 @@ export default function Tasks() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+    let filtered = tasks.filter((task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((task) =>
+        statusFilter === "completed" ? task.completed : !task.completed
+      );
+    }
+
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((task) => task.priority === priorityFilter);
+    }
+
+    setFilteredTasks(filtered);
+  }, [tasks, searchQuery, statusFilter, priorityFilter]);
 
   const fetchTasks = async () => {
     try {
@@ -155,10 +178,41 @@ export default function Tasks() {
                   Back to Home
                 </Button>
               </div>
-              <Button variant="outline" onClick={handleSignOut} size="sm">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onFilterChange={(type, value) => {
+                    if (type === "status") setStatusFilter(value);
+                    if (type === "priority") setPriorityFilter(value);
+                  }}
+                  filters={[
+                    {
+                      label: "Status",
+                      type: "status",
+                      options: [
+                        { label: "All Tasks", value: "all" },
+                        { label: "Completed", value: "completed" },
+                        { label: "Pending", value: "pending" },
+                      ],
+                    },
+                    {
+                      label: "Priority",
+                      type: "priority",
+                      options: [
+                        { label: "All Priorities", value: "all" },
+                        { label: "High", value: "high" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Low", value: "low" },
+                      ],
+                    },
+                  ]}
+                />
+                <Button variant="outline" onClick={handleSignOut} size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -212,11 +266,13 @@ export default function Tasks() {
           <CardTitle>Your Tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          {tasks.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No tasks yet</p>
+          {filteredTasks.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              {tasks.length === 0 ? "No tasks yet" : "No tasks match your search"}
+            </p>
           ) : (
             <div className="space-y-3">
-              {tasks.map((task) => (
+              {filteredTasks.map((task) => (
                 <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
                   <Checkbox
                     checked={task.completed}

@@ -4,10 +4,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, ArrowLeft, LogOut } from "lucide-react";
-import { format } from "date-fns";
+import { format, isWithinInterval, subDays, startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
+import { FilterMenu } from "@/components/FilterMenu";
 
 interface JournalEntry {
   id: string;
@@ -17,7 +18,10 @@ interface JournalEntry {
 
 export default function PreviousEntries() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -29,6 +33,31 @@ export default function PreviousEntries() {
   useEffect(() => {
     fetchEntries();
   }, []);
+
+  useEffect(() => {
+    let filtered = entries.filter((entry) =>
+      entry.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((entry) => {
+        const entryDate = new Date(entry.created_at);
+        switch (dateFilter) {
+          case "today":
+            return isWithinInterval(entryDate, { start: startOfDay(now), end: now });
+          case "week":
+            return isWithinInterval(entryDate, { start: subDays(now, 7), end: now });
+          case "month":
+            return isWithinInterval(entryDate, { start: subDays(now, 30), end: now });
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredEntries(filtered);
+  }, [entries, searchQuery, dateFilter]);
 
   const fetchEntries = async () => {
     try {
@@ -94,24 +123,45 @@ export default function PreviousEntries() {
                   Back to Home
                 </Button>
               </div>
-              <Button variant="outline" onClick={handleSignOut} size="sm">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onFilterChange={(type, value) => setDateFilter(value)}
+                  filters={[
+                    {
+                      label: "Date Range",
+                      type: "date",
+                      options: [
+                        { label: "All Time", value: "all" },
+                        { label: "Today", value: "today" },
+                        { label: "Last 7 Days", value: "week" },
+                        { label: "Last 30 Days", value: "month" },
+                      ],
+                    },
+                  ]}
+                />
+                <Button variant="outline" onClick={handleSignOut} size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </header>
 
           <main className="container mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-6">Previous Journal Entries</h1>
       <div className="space-y-4">
-        {entries.length === 0 ? (
+        {filteredEntries.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-muted-foreground text-center">No journal entries yet</p>
+              <p className="text-muted-foreground text-center">
+                {entries.length === 0 ? "No journal entries yet" : "No entries match your search"}
+              </p>
             </CardContent>
           </Card>
         ) : (
-          entries.map((entry) => (
+          filteredEntries.map((entry) => (
             <Card key={entry.id}>
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <div className="flex-1">

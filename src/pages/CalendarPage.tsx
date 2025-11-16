@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, ArrowLeft, LogOut, Plus } from "lucide-react";
-import { format } from "date-fns";
+import { format, isWithinInterval, subDays, startOfDay, isBefore } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
+import { FilterMenu } from "@/components/FilterMenu";
 
 interface CalendarEvent {
   id: string;
@@ -21,9 +22,12 @@ interface CalendarEvent {
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [newEvent, setNewEvent] = useState({ title: "", event_date: "", event_time: "" });
   const [isAdding, setIsAdding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [timeFilter, setTimeFilter] = useState("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -35,6 +39,28 @@ export default function CalendarPage() {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    let filtered = events.filter((event) =>
+      event.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (timeFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((event) => {
+        if (!event.event_date) return false;
+        const eventDate = new Date(event.event_date);
+        if (timeFilter === "upcoming") {
+          return !isBefore(eventDate, startOfDay(now));
+        } else if (timeFilter === "past") {
+          return isBefore(eventDate, startOfDay(now));
+        }
+        return true;
+      });
+    }
+
+    setFilteredEvents(filtered);
+  }, [events, searchQuery, timeFilter]);
 
   const fetchEvents = async () => {
     try {
@@ -119,10 +145,28 @@ export default function CalendarPage() {
                   Back to Home
                 </Button>
               </div>
-              <Button variant="outline" onClick={handleSignOut} size="sm">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onFilterChange={(type, value) => setTimeFilter(value)}
+                  filters={[
+                    {
+                      label: "Time Period",
+                      type: "time",
+                      options: [
+                        { label: "All Events", value: "all" },
+                        { label: "Upcoming", value: "upcoming" },
+                        { label: "Past", value: "past" },
+                      ],
+                    },
+                  ]}
+                />
+                <Button variant="outline" onClick={handleSignOut} size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -184,11 +228,13 @@ export default function CalendarPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {events.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No calendar events yet</p>
+          {filteredEvents.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              {events.length === 0 ? "No calendar events yet" : "No events match your search"}
+            </p>
           ) : (
             <div className="space-y-3">
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <div key={event.id} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
                   <h3 className="font-medium">{event.title}</h3>
                   <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
