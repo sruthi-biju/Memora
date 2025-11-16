@@ -66,7 +66,13 @@ export const JournalInput = ({ onProcessed }: JournalInputProps) => {
           body: { audio: base64Audio },
         });
 
-        if (error) throw error;
+        if (error) {
+          const errorMsg = error.message || '';
+          if (errorMsg.includes('quota') || errorMsg.includes('insufficient_quota')) {
+            throw new Error('OpenAI quota exceeded. Please add credits to your OpenAI account.');
+          }
+          throw error;
+        }
 
         if (data?.text) {
           setContent(prev => prev ? `${prev}\n\n${data.text}` : data.text);
