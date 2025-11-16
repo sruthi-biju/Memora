@@ -1,4 +1,4 @@
-# Memora - Your AI Powered Journal Companion
+# manora - Your AI Powered Journal Companion
 
 ## Project info
 A mindful digital companion that turns your day into clarity.
