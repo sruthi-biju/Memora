@@ -65,6 +65,17 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', errorText);
+      
+      // Parse error for better messaging
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.code === 'insufficient_quota') {
+          throw new Error('OpenAI quota exceeded. Please add credits to your OpenAI account or update your API key.');
+        }
+      } catch (e) {
+        // If parsing fails, continue with generic error
+      }
+      
       throw new Error(`OpenAI API error: ${errorText}`);
     }
 
