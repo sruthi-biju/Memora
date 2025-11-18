@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Calendar as CalendarIcon, ArrowLeft, LogOut, Plus } from "lucide-react";
 import { format, isWithinInterval, subDays, startOfDay, isBefore } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { FilterMenu } from "@/components/FilterMenu";
+import { ZenCharacter } from "@/components/ZenCharacter";
 
 interface CalendarEvent {
   id: string;
@@ -28,6 +30,8 @@ export default function CalendarPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -38,7 +42,32 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchEvents();
+    checkGoogleConnection();
   }, []);
+
+  const checkGoogleConnection = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_google_tokens")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsGoogleConnected(!!data && !error);
+    } catch (error) {
+      console.error("Error checking Google connection:", error);
+    }
+  };
+
+  const connectGoogleCalendar = async () => {
+    toast({
+      title: "Coming Soon",
+      description: "Google Calendar integration requires additional OAuth setup. Please add your Google Client ID and Secret to enable this feature.",
+    });
+  };
 
   useEffect(() => {
     let filtered = events.filter((event) =>
@@ -97,20 +126,55 @@ export default function CalendarPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("calendar_events")
         .insert({
           title: newEvent.title,
           event_date: newEvent.event_date || null,
           event_time: newEvent.event_time || null,
           user_id: user.id,
-        });
+          google_calendar_sync_enabled: syncEnabled && isGoogleConnected,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Sync with Google Calendar if enabled
+      if (syncEnabled && isGoogleConnected && data) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const response = await supabase.functions.invoke("google-calendar-sync", {
+            body: {
+              action: "create",
+              eventData: data,
+            },
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+          });
+
+          if (response.data?.googleCalendarId) {
+            await supabase
+              .from("calendar_events")
+              .update({ google_calendar_id: response.data.googleCalendarId })
+              .eq("id", data.id);
+          }
+        } catch (syncError) {
+          console.error("Error syncing with Google Calendar:", syncError);
+          toast({
+            title: "Partial Success",
+            description: "Event created but Google Calendar sync failed",
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "Success",
-        description: "Event added successfully",
+        description: syncEnabled && isGoogleConnected 
+          ? "Event added and synced to Google Calendar" 
+          : "Event added successfully",
       });
 
       setNewEvent({ title: "", event_date: "", event_time: "" });
@@ -180,9 +244,9 @@ export default function CalendarPage() {
             </div>
 
             {isAdding && (
-              <Card className="mb-6">
+              <Card className="mb-6 border-primary/20 shadow-lg">
                 <CardHeader>
-                  <CardTitle>Add New Event</CardTitle>
+                  <CardTitle className="text-foreground">Add New Event</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -192,6 +256,7 @@ export default function CalendarPage() {
                       value={newEvent.title}
                       onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                       placeholder="Enter event title"
+                      className="border-primary/30"
                     />
                   </div>
                   <div className="space-y-2">
@@ -201,6 +266,7 @@ export default function CalendarPage() {
                       type="date"
                       value={newEvent.event_date}
                       onChange={(e) => setNewEvent({ ...newEvent, event_date: e.target.value })}
+                      className="border-primary/30"
                     />
                   </div>
                   <div className="space-y-2">
@@ -210,40 +276,76 @@ export default function CalendarPage() {
                       type="time"
                       value={newEvent.event_time}
                       onChange={(e) => setNewEvent({ ...newEvent, event_time: e.target.value })}
+                      className="border-primary/30"
                     />
                   </div>
+                  {isGoogleConnected && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
+                      <Label htmlFor="sync-google" className="cursor-pointer">
+                        Sync with Google Calendar
+                      </Label>
+                      <Switch
+                        id="sync-google"
+                        checked={syncEnabled}
+                        onCheckedChange={setSyncEnabled}
+                      />
+                    </div>
+                  )}
+                  {!isGoogleConnected && (
+                    <Button
+                      variant="outline"
+                      onClick={connectGoogleCalendar}
+                      className="w-full"
+                    >
+                      Connect Google Calendar
+                    </Button>
+                  )}
                   <div className="flex gap-2">
-                    <Button onClick={addEvent}>Add</Button>
+                    <Button onClick={addEvent} className="bg-primary hover:bg-primary/90">Add</Button>
                     <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            <Card>
+            <Card className="border-primary/20 shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5" />
-            Upcoming Events
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            Your Events
           </CardTitle>
         </CardHeader>
         <CardContent>
           {filteredEvents.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              {events.length === 0 ? "No calendar events yet" : "No events match your search"}
-            </p>
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🌸</div>
+              <p className="text-muted-foreground">
+                {events.length === 0 ? "No calendar events yet. Start by adding one!" : "No events match your search"}
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredEvents.map((event) => (
-                <div key={event.id} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                  <h3 className="font-medium">{event.title}</h3>
-                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                    {event.event_date && (
-                      <span>{format(new Date(event.event_date), "MMMM d, yyyy")}</span>
-                    )}
-                    {event.event_time && (
-                      <span>at {event.event_time}</span>
-                    )}
+                <div 
+                  key={event.id} 
+                  className="p-4 rounded-xl border-2 border-primary/10 bg-gradient-to-br from-card to-accent/20 hover:border-primary/30 transition-all duration-300 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground">{event.title}</h3>
+                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                        {event.event_date && (
+                          <span className="flex items-center gap-1">
+                            🗓️ {format(new Date(event.event_date), "MMMM d, yyyy")}
+                          </span>
+                        )}
+                        {event.event_time && (
+                          <span className="flex items-center gap-1">
+                            ⏰ {event.event_time}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -251,6 +353,7 @@ export default function CalendarPage() {
           )}
             </CardContent>
             </Card>
+            <ZenCharacter />
           </main>
         </div>
       </div>

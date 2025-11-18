@@ -57,6 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        zen: {
+          sage: "hsl(var(--zen-sage))",
+          moss: "hsl(var(--zen-moss))",
+          sand: "hsl(var(--zen-sand))",
+          bamboo: "hsl(var(--zen-bamboo))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
